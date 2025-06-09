@@ -3,7 +3,7 @@ package zjson
 import "encoding/json"
 
 var (
-	jsonParser JsonParser = &DefaultParser{}
+	jsonParser JsonParser = &defaultParser{}
 )
 
 func SetParser(parser JsonParser) {
@@ -15,14 +15,14 @@ type JsonParser interface {
 	JsonStringToAny(jsonStr []byte, v any) error
 }
 
-type DefaultParser struct {
+type defaultParser struct {
 }
 
-func (p *DefaultParser) AnyToJsonString(v any) ([]byte, error) {
+func (p *defaultParser) AnyToJsonString(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (p *DefaultParser) JsonStringToAny(jsonStr []byte, v any) error {
+func (p *defaultParser) JsonStringToAny(jsonStr []byte, v any) error {
 	return json.Unmarshal(jsonStr, v)
 }
 
