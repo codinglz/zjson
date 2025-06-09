@@ -81,11 +81,21 @@ func (ja *JsonArray) GetJsonObject(index int) (*JsonObject, error) {
 	return ParseToJsonObject(ja.data[index])
 }
 
+func (ja *JsonArray) GetJsonObjectIgnoreError(index int) *JsonObject {
+	jsonObject, _ := ja.GetJsonObject(index)
+	return jsonObject
+}
+
 func (ja *JsonArray) GetJsonArray(index int) (*JsonArray, error) {
 	if index < 0 || index >= len(ja.data) {
 		return nil, fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
 	}
 	return ParseToArray(ja.data[index])
+}
+
+func (ja *JsonArray) GetJsonArrayIgnoreError(index int) *JsonArray {
+	jsonArray, _ := ja.GetJsonArray(index)
+	return jsonArray
 }
 
 func (ja *JsonArray) GetInt(index int) (int, error) {
@@ -105,4 +115,46 @@ func (ja *JsonArray) GetInt(index int) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("index%d is not an int", index)
+}
+
+func (ja *JsonArray) GetIntIgnoreError(index int) int {
+	intVal, _ := ja.GetInt(index)
+	return intVal
+}
+
+func (ja *JsonArray) GetFloat(index int) (float64, error) {
+	if index < 0 || index >= len(ja.data) {
+		return 0, fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
+	}
+	val := ja.data[index]
+	if val, ok := val.(float64); ok {
+		return val, nil
+	}
+	if floatStr, ok := val.(string); ok {
+		if number, err := strconv.ParseFloat(floatStr, 64); err == nil {
+			return number, nil
+		}
+	}
+	return 0, fmt.Errorf("index%d is not a float", index)
+}
+
+func (ja *JsonArray) GetFloatIgnoreError(index int) float64 {
+	floatVal, _ := ja.GetFloat(index)
+	return floatVal
+}
+
+func (ja *JsonArray) GetString(index int) (string, error) {
+	if index < 0 || index >= len(ja.data) {
+		return "", fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
+	}
+	val := ja.data[index]
+	if val, ok := val.(string); ok {
+		return val, nil
+	}
+	return fmt.Sprint(val), nil
+}
+
+func (ja *JsonArray) GetStringIgnoreError(index int) string {
+	strVal, _ := ja.GetString(index)
+	return strVal
 }

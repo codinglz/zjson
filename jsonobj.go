@@ -104,6 +104,11 @@ func (jo *JsonObject) GetInt(key string) (int, error) {
 	return 0, errValueType
 }
 
+func (jo *JsonObject) GetIntIgnoreError(key string) int {
+	val, _ := jo.GetInt(key)
+	return val
+}
+
 func (jo *JsonObject) GetFloat(key string) (float64, error) {
 	val, exist := jo.data[key]
 	if !exist {
@@ -120,6 +125,11 @@ func (jo *JsonObject) GetFloat(key string) (float64, error) {
 	return 0, errValueType
 }
 
+func (jo *JsonObject) GetFloatIgnoreError(key string) float64 {
+	val, _ := jo.GetFloat(key)
+	return val
+}
+
 func (jo *JsonObject) GetString(key string) (string, error) {
 	val, exist := jo.data[key]
 	if !exist {
@@ -129,6 +139,11 @@ func (jo *JsonObject) GetString(key string) (string, error) {
 		return strVal, nil
 	}
 	return fmt.Sprint(val), nil
+}
+
+func (jo *JsonObject) GetStringIgnoreError(key string) string {
+	val, _ := jo.GetString(key)
+	return val
 }
 
 func (jo *JsonObject) GetBool(key string) (bool, error) {
@@ -149,6 +164,11 @@ func (jo *JsonObject) GetBool(key string) (bool, error) {
 	return false, errValueType
 }
 
+func (jo *JsonObject) GetBoolIgnoreError(key string) bool {
+	val, _ := jo.GetBool(key)
+	return val
+}
+
 func (jo *JsonObject) GetJsonObject(key string) (*JsonObject, error) {
 	val, exist := jo.data[key]
 	if !exist {
@@ -157,10 +177,20 @@ func (jo *JsonObject) GetJsonObject(key string) (*JsonObject, error) {
 	return ParseToJsonObject(val)
 }
 
+func (jo *JsonObject) GetJsonObjectIgnoreError(key string) *JsonObject {
+	val, _ := jo.GetJsonObject(key)
+	return val
+}
+
 func (jo *JsonObject) GetJsonArray(key string) (*JsonArray, error) {
 	val, exist := jo.data[key]
 	if !exist {
 		return nil, errKeyNotExist
 	}
 	return ParseToArray(val)
+}
+
+func (jo *JsonObject) GetJsonArrayIgnoreError(key string) *JsonArray {
+	val, _ := jo.GetJsonArray(key)
+	return val
 }
