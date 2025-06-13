@@ -3,10 +3,12 @@ package zjson
 import (
 	"fmt"
 	"strconv"
+	"sync"
 )
 
 type JsonArray struct {
 	data []any
+	mu   sync.RWMutex // 添加互斥锁以支持并发安全
 }
 
 func ParseToArray(v any) (*JsonArray, error) {
@@ -20,12 +22,14 @@ func ParseToArray(v any) (*JsonArray, error) {
 	} else if strByte, err := jsonParser.AnyToJsonString(v); err == nil {
 		return ParseToArray(string(strByte))
 	} else {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse value: %w", err)
 	}
+
 	var arrayVal = make([]any, 0)
 	if err := jsonParser.JsonStringToAny(strB, &arrayVal); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse JSON array: %w", err)
 	}
+
 	return &JsonArray{
 		data: arrayVal,
 	}, nil
@@ -38,10 +42,14 @@ func NewJsonArray() *JsonArray {
 }
 
 func (ja *JsonArray) Add(value any) {
+	ja.mu.Lock()
+	defer ja.mu.Unlock()
 	ja.data = append(ja.data, value)
 }
 
 func (ja *JsonArray) Get(index int) any {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
 	if index < 0 || index >= len(ja.data) {
 		return nil
 	}
@@ -49,6 +57,8 @@ func (ja *JsonArray) Get(index int) any {
 }
 
 func (ja *JsonArray) Remove(index int) {
+	ja.mu.Lock()
+	defer ja.mu.Unlock()
 	if index < 0 || index >= len(ja.data) {
 		return
 	}
@@ -56,10 +66,14 @@ func (ja *JsonArray) Remove(index int) {
 }
 
 func (ja *JsonArray) Length() int {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
 	return len(ja.data)
 }
 
 func (ja *JsonArray) ToJsonStr() string {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
 	jsonStr, err := jsonParser.AnyToJsonString(ja.data)
 	if err != nil {
 		return "[]"
@@ -68,16 +82,22 @@ func (ja *JsonArray) ToJsonStr() string {
 }
 
 func (ja *JsonArray) ToStruct(s any) error {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
 	if err := jsonParser.JsonStringToAny([]byte(ja.ToJsonStr()), s); err != nil {
-		return err
+		return fmt.Errorf("failed to convert to struct: %w", err)
 	}
 	return nil
 }
 
 func (ja *JsonArray) GetJsonObject(index int) (*JsonObject, error) {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
+
 	if index < 0 || index >= len(ja.data) {
 		return nil, fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
 	}
+
 	return ParseToJsonObject(ja.data[index])
 }
 
@@ -87,9 +107,13 @@ func (ja *JsonArray) GetJsonObjectIgnoreError(index int) *JsonObject {
 }
 
 func (ja *JsonArray) GetJsonArray(index int) (*JsonArray, error) {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
+
 	if index < 0 || index >= len(ja.data) {
 		return nil, fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
 	}
+
 	return ParseToArray(ja.data[index])
 }
 
@@ -99,22 +123,27 @@ func (ja *JsonArray) GetJsonArrayIgnoreError(index int) *JsonArray {
 }
 
 func (ja *JsonArray) GetInt(index int) (int, error) {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
+
 	if index < 0 || index >= len(ja.data) {
 		return 0, fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
 	}
+
 	val := ja.data[index]
-	if val, ok := val.(float64); ok {
-		return int(val), nil
-	}
-	if intVal, ok := val.(int); ok {
-		return intVal, nil
-	}
-	if intStr, ok := val.(string); ok {
-		if number, err := strconv.ParseInt(intStr, 10, 64); err == nil {
+	switch v := val.(type) {
+	case int:
+		return v, nil
+	case int64:
+		return int(v), nil
+	case float64:
+		return int(v), nil
+	case string:
+		if number, err := strconv.ParseInt(v, 10, 64); err == nil {
 			return int(number), nil
 		}
 	}
-	return 0, fmt.Errorf("index%d is not an int", index)
+	return 0, fmt.Errorf("value at index %d is not an integer", index)
 }
 
 func (ja *JsonArray) GetIntIgnoreError(index int) int {
@@ -123,19 +152,27 @@ func (ja *JsonArray) GetIntIgnoreError(index int) int {
 }
 
 func (ja *JsonArray) GetFloat(index int) (float64, error) {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
+
 	if index < 0 || index >= len(ja.data) {
 		return 0, fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
 	}
+
 	val := ja.data[index]
-	if val, ok := val.(float64); ok {
-		return val, nil
-	}
-	if floatStr, ok := val.(string); ok {
-		if number, err := strconv.ParseFloat(floatStr, 64); err == nil {
+	switch v := val.(type) {
+	case float64:
+		return v, nil
+	case int:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	case string:
+		if number, err := strconv.ParseFloat(v, 64); err == nil {
 			return number, nil
 		}
 	}
-	return 0, fmt.Errorf("index%d is not a float", index)
+	return 0, fmt.Errorf("value at index %d is not a float", index)
 }
 
 func (ja *JsonArray) GetFloatIgnoreError(index int) float64 {
@@ -144,12 +181,16 @@ func (ja *JsonArray) GetFloatIgnoreError(index int) float64 {
 }
 
 func (ja *JsonArray) GetString(index int) (string, error) {
+	ja.mu.RLock()
+	defer ja.mu.RUnlock()
+
 	if index < 0 || index >= len(ja.data) {
 		return "", fmt.Errorf("index %d out of bounds for array of length %d", index, len(ja.data))
 	}
+
 	val := ja.data[index]
-	if val, ok := val.(string); ok {
-		return val, nil
+	if strVal, ok := val.(string); ok {
+		return strVal, nil
 	}
 	return fmt.Sprint(val), nil
 }
